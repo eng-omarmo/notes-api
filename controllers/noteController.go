@@ -15,6 +15,26 @@ func GetNotes(c *gin.Context) {
 	models.DB.Find(&notes)
 	c.JSON(http.StatusOK, gin.H{"data": notes})
 }
+
+
+func UpdateNote(c *gin.Context) {
+	var id  = c.Param("id")
+	fmt.Println("ID:", id)
+	//find the note with the given id
+	var note models.Note
+	if err := models.DB.Where("id = ?", id).First(&note).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Note not found"})
+		return
+	}
+	//bind the request body to the note struct
+	if err := c.ShouldBindJSON(&note); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+
+
+
+}
 func CreateNote(c *gin.Context) {
 	// 1. Create dedicated input struct for better validation control
 	// type CreateNoteInput struct {
