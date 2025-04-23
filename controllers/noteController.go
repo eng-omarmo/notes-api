@@ -16,24 +16,51 @@ func GetNotes(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": notes})
 }
 
-
 func UpdateNote(c *gin.Context) {
-	var id  = c.Param("id")
-	fmt.Println("ID:", id)
-	//find the note with the given id
+	// 1. Get note ID
+	id := c.Param("id")
+
+	// 2. Find the existing note
 	var note models.Note
-	if err := models.DB.Where("id = ?", id).First(&note).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Note not found"})
+	if err := models.DB.First(&note, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Note not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
 		return
 	}
-	//bind the request body to the note struct
-	if err := c.ShouldBindJSON(&note); err != nil {
+
+	fmt.Print("Note found:", note)
+
+	// 3. Use separate input struct for binding
+	type UpdateNoteInput struct {
+		Title   string `json:"title"`
+		Content string `json:"content"`
+	}
+
+	var input UpdateNoteInput
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
 		return
 	}
 
+	// 4. Update only provided fields
+	if input.Title != "" {
+		note.Title = strings.TrimSpace(input.Title)
+	}
+	if input.Content != "" {
+		note.Content = strings.TrimSpace(input.Content)
+	}
+
+	// 5. Save changes
+	if err := models.DB.Save(&note).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update note"})
+		return
+	}
 
 
+	c.JSON(http.StatusOK, gin.H{"data": note})
 }
 func CreateNote(c *gin.Context) {
 	// 1. Create dedicated input struct for better validation control
